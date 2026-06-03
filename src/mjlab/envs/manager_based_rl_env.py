@@ -303,49 +303,39 @@ class ManagerBasedRlEnv:
 
     Order is important! Event and command managers must be loaded first,
     then action and observation managers, then other RL managers.
+
+    Each manager is created via a ``_init_*_manager()`` factory method so
+    subclasses can override individual managers without reimplementing the
+    full initialization sequence.
     """
     # Event manager (required before everything else for domain randomization).
-    self.event_manager = EventManager(self.cfg.events, self)
+    self.event_manager = self._init_event_manager()
     print_info(f"[INFO] {self.event_manager}")
 
     self.sim.expand_model_fields(self.event_manager.domain_randomization_fields)
 
     # Command manager (must be before observation manager since observations
     # may reference commands).
-    if len(self.cfg.commands) > 0:
-      self.command_manager = CommandManager(self.cfg.commands, self)
-    else:
-      self.command_manager = NullCommandManager()
+    self.command_manager = self._init_command_manager()
     print_info(f"[INFO] {self.command_manager}")
 
     # Action and observation managers.
-    self.action_manager = ActionManager(self.cfg.actions, self)
+    self.action_manager = self._init_action_manager()
     print_info(f"[INFO] {self.action_manager}")
-    self.observation_manager = ObservationManager(self.cfg.observations, self)
+    self.observation_manager = self._init_observation_manager()
     print_info(f"[INFO] {self.observation_manager}")
 
     # Other RL-specific managers.
 
-    self.termination_manager = TerminationManager(self.cfg.terminations, self)
+    self.termination_manager = self._init_termination_manager()
     print_info(f"[INFO] {self.termination_manager}")
-    self.reward_manager = RewardManager(
-      self.cfg.rewards, self, scale_by_dt=self.cfg.scale_rewards_by_dt
-    )
+    self.reward_manager = self._init_reward_manager()
     print_info(f"[INFO] {self.reward_manager}")
-    if len(self.cfg.curriculum) > 0:
-      self.curriculum_manager = CurriculumManager(self.cfg.curriculum, self)
-    else:
-      self.curriculum_manager = NullCurriculumManager()
+    self.curriculum_manager = self._init_curriculum_manager()
     print_info(f"[INFO] {self.curriculum_manager}")
-    if len(self.cfg.metrics) > 0:
-      self.metrics_manager = MetricsManager(self.cfg.metrics, self)
-    else:
-      self.metrics_manager = NullMetricsManager()
+    self.metrics_manager = self._init_metrics_manager()
     print_info(f"[INFO] {self.metrics_manager}")
-    if len(self.cfg.recorders) > 0:
-      self.recorder_manager = RecorderManager(self.cfg.recorders, self)
-    else:
-      self.recorder_manager = NullRecorderManager()
+    self.recorder_manager = self._init_recorder_manager()
     print_info(f"[INFO] {self.recorder_manager}")
 
     # Configure spaces for the environment.
@@ -354,6 +344,43 @@ class ManagerBasedRlEnv:
     # Initialize startup events if defined.
     if "startup" in self.event_manager.available_modes:
       self.event_manager.apply(mode="startup")
+
+  # ── Manager factory methods (override in subclasses) ─────────────────────
+
+  def _init_event_manager(self) -> EventManager:
+    return EventManager(self.cfg.events, self)
+
+  def _init_command_manager(self) -> CommandManager | NullCommandManager:
+    if len(self.cfg.commands) > 0:
+      return CommandManager(self.cfg.commands, self)
+    return NullCommandManager()
+
+  def _init_action_manager(self) -> ActionManager:
+    return ActionManager(self.cfg.actions, self)
+
+  def _init_observation_manager(self) -> ObservationManager:
+    return ObservationManager(self.cfg.observations, self)
+
+  def _init_termination_manager(self) -> TerminationManager:
+    return TerminationManager(self.cfg.terminations, self)
+
+  def _init_reward_manager(self) -> RewardManager:
+    return RewardManager(self.cfg.rewards, self, scale_by_dt=self.cfg.scale_rewards_by_dt)
+
+  def _init_curriculum_manager(self) -> CurriculumManager | NullCurriculumManager:
+    if len(self.cfg.curriculum) > 0:
+      return CurriculumManager(self.cfg.curriculum, self)
+    return NullCurriculumManager()
+
+  def _init_metrics_manager(self) -> MetricsManager | NullMetricsManager:
+    if len(self.cfg.metrics) > 0:
+      return MetricsManager(self.cfg.metrics, self)
+    return NullMetricsManager()
+
+  def _init_recorder_manager(self) -> RecorderManager | NullRecorderManager:
+    if len(self.cfg.recorders) > 0:
+      return RecorderManager(self.cfg.recorders, self)
+    return NullRecorderManager()
 
   def reset(
     self,
