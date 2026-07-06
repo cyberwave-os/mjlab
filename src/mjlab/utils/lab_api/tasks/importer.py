@@ -8,8 +8,11 @@
 from __future__ import annotations
 
 import importlib
+import logging
 import pkgutil
 import sys
+
+logger = logging.getLogger(__name__)
 
 
 def import_packages(package_name: str, blacklist_pkgs: list[str] | None = None):
@@ -26,6 +29,12 @@ def import_packages(package_name: str, blacklist_pkgs: list[str] | None = None):
       import .manipulation.reach
       import .manipulation.lift
 
+  A sub-package that fails to import (e.g. an optional/demo task config whose
+  heavy or stripped dependency is not installed — such as ``mjlab.asset_zoo``
+  robot assets, which are dropped from the slim cyberwave_rl fat wheel) is
+  logged and skipped rather than aborting the whole walk. This keeps one
+  optional package from taking down discovery of every other task.
+
   Args:
       package_name: The package name.
       blacklist_pkgs: The list of blacklisted packages to skip. Defaults to None,
@@ -34,11 +43,25 @@ def import_packages(package_name: str, blacklist_pkgs: list[str] | None = None):
   # Default blacklist
   if blacklist_pkgs is None:
     blacklist_pkgs = []
+
+  def _on_import_error(failed_name: str) -> None:
+    # Called from within the walk's `except` block, so sys.exc_info() still
+    # holds the active exception. Log (don't swallow silently) so a skipped
+    # package is diagnosable in stderr, then continue the walk.
+    logger.warning(
+      "import_packages: skipping %r — failed to import during recursive walk: %s",
+      failed_name,
+      sys.exc_info()[1],
+    )
+
   # Import the package itself
   package = importlib.import_module(package_name)
   # Import all Python files
   for _ in _walk_packages(
-    package.__path__, package.__name__ + ".", blacklist_pkgs=blacklist_pkgs
+    package.__path__,
+    package.__name__ + ".",
+    onerror=_on_import_error,
+    blacklist_pkgs=blacklist_pkgs,
   ):
     pass
 
