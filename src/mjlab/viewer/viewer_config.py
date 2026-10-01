@@ -63,3 +63,7 @@ class ViewerConfig:
 
   body_name: str | None = None
   """Body tracked by the camera. Required for ASSET_BODY."""
+
+  camera_name: str | None = None
+  """Model camera the offscreen renderer records from. None uses the free
+  camera configured above."""

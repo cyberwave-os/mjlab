@@ -21,6 +21,15 @@ from mjlab.utils.spec import export_spec, non_default_option_fields
 _SCENE_XML = Path(__file__).parent / "scene.xml"
 
 
+class EntityInitializationError(RuntimeError):
+  """Raised when one or more entities fail to initialize against the model.
+
+  Signals an unrecoverable scene build (a name in the entity spec could not be
+  resolved in the compiled model). Distinct from tolerable issues such as an
+  unavailable SensorContext on a CPU-only backend.
+  """
+
+
 @dataclass(kw_only=True)
 class SceneCfg:
   """Configuration for a simulation scene."""
@@ -168,8 +177,25 @@ class Scene:
     self._default_env_origins = torch.zeros(
       (self._cfg.num_envs, 3), device=self._device, dtype=torch.float32
     )
-    for ent in self._entities.values():
-      ent.initialize(mj_model, model, data, self._device)
+    failures: list[tuple[str, Exception]] = []
+    for ent_name, ent in self._entities.items():
+      try:
+        ent.initialize(mj_model, model, data, self._device)
+      except (KeyError, IndexError) as exc:
+        failures.append((ent_name, exc))
+    if failures:
+      detail = "\n".join(
+        f"  - entity '{name}': {type(exc).__name__}: {exc}" for name, exc in failures
+      )
+      raise EntityInitializationError(
+        f"{len(failures)} entit(y/ies) failed to initialize against the compiled "
+        f"model. A name in the entity spec could not be resolved in the scene "
+        f"model (commonly a free-joint / prefix-namespacing mismatch between the "
+        f"exported scene XML and mjlab's entity specs). Each listed entity is left "
+        f"without state, so any downstream observation/action reading "
+        f"`entity.data` would crash with a misleading "
+        f"`'Entity' object has no attribute '_data'`:\n{detail}"
+      )
     for sensor in self._sensors.values():
       sensor.initialize(mj_model, model, data, self._device)
 
@@ -189,18 +215,24 @@ class Scene:
 
   def reset(self, env_ids: torch.Tensor | slice | None = None) -> None:
     for ent in self._entities.values():
+      if not hasattr(ent, "_data"):
+        continue
       ent.reset(env_ids)
     for sensor in self._sensors.values():
       sensor.reset(env_ids)
 
   def update(self, dt: float) -> None:
     for ent in self._entities.values():
+      if not hasattr(ent, "_data"):
+        continue
       ent.update(dt)
     for sensor in self._sensors.values():
       sensor.update(dt)
 
   def write_data_to_sim(self) -> None:
     for ent in self._entities.values():
+      if not hasattr(ent, "_data"):
+        continue
       ent.write_data_to_sim()
 
   # Private methods.

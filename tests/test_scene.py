@@ -10,7 +10,7 @@ from conftest import get_test_device, load_fixture_xml
 
 from mjlab.actuator import BuiltinPositionActuatorCfg
 from mjlab.entity import Entity, EntityArticulationInfoCfg, EntityCfg
-from mjlab.scene import Scene, SceneCfg
+from mjlab.scene import EntityInitializationError, Scene, SceneCfg
 from mjlab.sim.sim import Simulation, SimulationCfg
 from mjlab.sim.sim_data import WarpBridge
 
@@ -119,9 +119,16 @@ def initialized_scene(scene_with_entities_cfg, device):
 
 @pytest.fixture
 def mock_entities():
-  """Create mock entities for testing."""
+  """Create mock entities for testing.
+
+  ``Scene.reset``/``update``/``write_data_to_sim`` skip entities that never
+  initialized (``not hasattr(ent, "_data")``), so give the mocks a ``_data``
+  attribute to represent successfully-initialized entities.
+  """
   mock_box = Mock(spec=Entity)
   mock_robot = Mock(spec=Entity)
+  mock_box._data = Mock()
+  mock_robot._data = Mock()
   return {"box": mock_box, "robot": mock_robot}
 
 
@@ -269,6 +276,31 @@ def test_scene_initialize(initialized_scene, device):
   for entity in scene.entities.values():
     assert hasattr(entity, "data")
     assert entity.data is not None
+
+
+def test_initialize_raises_on_entity_failure(scene_with_entities_cfg, device):
+  """A KeyError/IndexError while initializing an entity must surface as a clear
+  EntityInitializationError naming the entity, not be silently swallowed.
+
+  Regression guard for the RL-deploy bug where a free-joint entity failed to
+  resolve its name against the compiled model, was skipped, and later crashed
+  downstream with a misleading ``'Entity' object has no attribute '_data'``.
+  """
+  scene = Scene(scene_with_entities_cfg, device)
+  model = scene.compile()
+  data = mujoco.MjData(model)
+  mujoco.mj_resetData(model, data)
+  wp_model = WarpBridge(mjwarp.put_model(model), nworld=scene.num_envs)
+  wp_data = WarpBridge(mjwarp.put_data(model, data, nworld=scene.num_envs))
+
+  def _boom(*args, **kwargs):
+    raise KeyError("robot/phantom_joint")
+
+  scene.entities["robot"].initialize = _boom  # type: ignore[method-assign]
+
+  with pytest.raises(EntityInitializationError) as excinfo:
+    scene.initialize(model, wp_model, wp_data)  # type: ignore[arg-type]
+  assert "robot" in str(excinfo.value)
 
 
 def test_env_origins_without_terrain(initialized_scene):
