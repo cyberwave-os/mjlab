@@ -2,7 +2,7 @@
 # https://github.com/astral-sh/uv-docker-example/blob/main/standalone.Dockerfile
 # Note that we use uv to launch, so we omit the second half of the example (non-UV final image)
 
-FROM nvidia/cuda:12.8.0-runtime-ubuntu24.04
+FROM nvidia/cuda:13.0.0-runtime-ubuntu24.04
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -23,12 +23,12 @@ WORKDIR /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --locked --no-install-project --no-editable --no-dev
+    uv sync --locked --extra cu130 --no-install-project --no-editable --no-dev
 
 ADD . /app
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-editable --no-dev
+    uv sync --locked --extra cu130 --no-editable --no-dev
 
 ENV MUJOCO_GL=egl
 EXPOSE 8080

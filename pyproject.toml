@@ -34,9 +34,9 @@ dependencies = [
   "prettytable",
   "tqdm",
   "tyro>=1.0.1",
-  "torch>=2.7.0",
+  "torch>=2.11.0",
   "torchrunx>=0.3.4",
-  "warp-lang>=1.12.0",
+  "warp-lang>=1.14.0",
   "mujoco-warp>=3.8.0.3,~=3.8.0",
   "mujoco~=3.8.0",
   "trimesh>=4.8.3",
@@ -91,12 +91,12 @@ docs = [
 ]
 
 [project.optional-dependencies]
-cu128 = ["torch>=2.7.0"]
-cpu = ["torch>=2.7.0"]
+cu130 = ["torch>=2.11.0"]
+cpu = ["torch>=2.11.0"]
 
 [tool.uv]
 conflicts = [
-  [{extra = "cu128"}, {extra = "cpu"}],
+  [{extra = "cu130"}, {extra = "cpu"}],
 ]
 # The nightly index (py.mujoco.org) only has dev builds, and PEP 440 ranks
 # 3.8.0.devN < 3.8.0, so the ~=3.8.0 floor in [project.dependencies] would
@@ -120,8 +120,8 @@ url = "https://pypi.nvidia.com/"
 explicit = true
 
 [[tool.uv.index]]
-name = "pytorch-cu128"
-url = "https://download.pytorch.org/whl/cu128"
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
 explicit = true
 
 [[tool.uv.index]]
@@ -137,7 +137,7 @@ explicit = true
 [tool.uv.sources]
 warp-lang = { index = "nvidia", marker = "sys_platform != 'darwin'" }
 torch = [
-  { index = "pytorch-cu128", extra = "cu128", marker = "sys_platform != 'darwin'" },
+  { index = "pytorch-cu130", extra = "cu130", marker = "sys_platform != 'darwin'" },
   { index = "pytorch-cpu", extra = "cpu", marker = "sys_platform != 'darwin'" },
 ]
 mujoco = { index = "mujoco" }

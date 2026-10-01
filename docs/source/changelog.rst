@@ -2,6 +2,20 @@
 Changelog
 =========
 
+Upcoming version (not yet released)
+-----------------------------------
+
+Added
+^^^^^
+
+- ``mdp.joint_pos_rel`` gained a ``wrap_continuous`` flag (default ``False``).
+  When enabled, *continuous* joints (those exposed with non-finite ``±inf``
+  position limits) have their absolute position wrapped into ``[-pi, pi]``
+  before the home pose is subtracted, so a wound-up joint feeds a bounded
+  angle to the policy and the training observation matches the deploy-side
+  wrap. Bounded joints are unaffected, and the default preserves the existing
+  behavior for all current tasks and checkpoints.
+
 Version 1.4.0 (May 26, 2026)
 ----------------------------
 

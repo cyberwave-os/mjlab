@@ -33,3 +33,4 @@ class ViewerConfig:
   enable_shadows: bool = True
   height: int = 240
   width: int = 320
+  camera_name: str | None = None

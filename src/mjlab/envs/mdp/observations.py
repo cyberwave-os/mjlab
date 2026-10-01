@@ -9,6 +9,7 @@ import torch
 from mjlab.entity import Entity
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import BuiltinSensor, RayCastSensor
+from mjlab.utils.lab_api.math import wrap_to_pi
 
 if TYPE_CHECKING:
   from mjlab.envs import ManagerBasedRlEnv
@@ -51,14 +52,41 @@ def projected_gravity(
 def joint_pos_rel(
   env: ManagerBasedRlEnv,
   biased: bool = False,
+  wrap_continuous: bool = False,
   asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> torch.Tensor:
+  """Joint positions relative to the default (home) pose.
+
+  When ``wrap_continuous`` is set, *continuous* joints (those with non-finite
+  ``±inf`` position limits) have the home-relative delta ``(jp - home)`` wrapped
+  into ``[-pi, pi]``. Wrapping the *delta* (rather than wrapping the absolute
+  position and then subtracting home) puts the 2*pi observation seam on the far
+  side of home — out of the joint's working range — instead of at absolute
+  ``±pi`` regardless of home. Because ``wrap_to_pi`` is modular
+  (``wrap(wrap(jp) - home) == wrap(jp - home)``), this stays consistent with the
+  deploy adapter, which wraps the absolute measured qpos in ``positions_to_qpos``
+  before mjlab subtracts the home pose — closing the train/deploy gap for
+  continuous joints (a wound-up joint no longer feeds an ever-growing raw angle
+  to the policy). For a joint whose home is ``0`` (e.g. the Kinova roll joints)
+  it is identical to the previous ``wrap(jp) - home``, so trained checkpoints are
+  unchanged. Defaults to ``False`` so existing tasks are unchanged; enable it
+  only for newly trained policies.
+  """
   asset: Entity = env.scene[asset_cfg.name]
   default_joint_pos = asset.data.default_joint_pos
   assert default_joint_pos is not None
   jnt_ids = asset_cfg.joint_ids
   joint_pos = asset.data.joint_pos_biased if biased else asset.data.joint_pos
-  return joint_pos[:, jnt_ids] - default_joint_pos[:, jnt_ids]
+  jp = joint_pos[:, jnt_ids]
+  dp = default_joint_pos[:, jnt_ids]
+  if not wrap_continuous:
+    return jp - dp
+  # Continuous joints are exposed by mjlab with non-finite (±inf) position
+  # limits (see Entity: an unlimited joint's raw [0, 0] range is overwritten
+  # with [-inf, +inf]).
+  limits = asset.data.joint_pos_limits[:, jnt_ids]  # (N, J, 2)
+  continuous = ~torch.isfinite(limits).all(dim=-1)  # (N, J)
+  return torch.where(continuous, wrap_to_pi(jp - dp), jp - dp)
 
 
 def joint_vel_rel(

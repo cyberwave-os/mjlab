@@ -179,6 +179,7 @@ class ManagerBasedRlEnv:
     cfg: ManagerBasedRlEnvCfg,
     device: str,
     render_mode: str | None = None,
+    sim=None,
     **kwargs,
   ) -> None:
     # Initialize base environment state.
@@ -193,14 +194,26 @@ class ManagerBasedRlEnv:
     )
 
     # Initialize scene and simulation.
+    #
+    # ``sim`` lets a caller inject an external physics backend that satisfies the
+    # same surface as ``Simulation`` (``mj_model`` / ``model`` / ``data`` +
+    # ``step`` / ``reset`` / ``forward`` / ``sense`` + the DR/sensor hooks). When
+    # provided we skip building a local Warp ``Simulation`` and drive that plant
+    # instead — this is what lets the full manager-based *training* env run on a
+    # non-Warp backend (e.g. the out-of-process Gazebo plant), keeping every
+    # manager, the auto-reset step loop, and reward/termination unchanged. When
+    # ``sim is None`` the behaviour is exactly as before.
     self.scene = Scene(self.cfg.scene, device=device)
-    self.sim = Simulation(
-      num_envs=self.scene.num_envs,
-      cfg=self.cfg.sim,
-      spec=self.scene.spec,
-      variant_info=self.scene.collect_variant_info(),
-      device=device,
-    )
+    if sim is not None:
+      self.sim = sim
+    else:
+      self.sim = Simulation(
+        num_envs=self.scene.num_envs,
+        cfg=self.cfg.sim,
+        spec=self.scene.spec,
+        variant_info=self.scene.collect_variant_info(),
+        device=device,
+      )
 
     self.scene.initialize(
       mj_model=self.sim.mj_model,

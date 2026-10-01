@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 import mujoco
 import mujoco_warp as mjwarp
@@ -24,6 +24,21 @@ from mjlab.utils.xml import fix_spec_xml, strip_buffer_textures
 
 if TYPE_CHECKING:
   from mjlab.entity.variants import VariantMetadata
+
+
+def _joint_lookup(model: mujoco.MjModel, name: str) -> Any:
+  """Look up a joint by name, falling back to stripped entity prefix.
+
+  When a Scene is initialized against a pre-composed (exported) MuJoCo model,
+  joint names in the model lack the ``<entity>/`` prefix that mjlab adds during
+  ``MjSpec.attach()``. This mirrors the full/bare name matching from
+  ``cyberwave-rl/source/view_task.py`` and ``run_local_mujoco.py``.
+  """
+  try:
+    return model.joint(name)
+  except KeyError:
+    bare = name.split("/", 1)[1] if "/" in name else name
+    return model.joint(bare)
 
 
 @dataclass(frozen=False)
@@ -407,6 +422,13 @@ class Entity:
 
   @property
   def data(self) -> EntityData:
+    if getattr(self, "_data", None) is None:
+      raise RuntimeError(
+        "Entity data is unavailable because the entity was never initialized "
+        "against the model (Entity.initialize did not run or failed). This "
+        "usually means a name in the entity spec could not be resolved in the "
+        "compiled scene model."
+      )
     return self._data
 
   @property
@@ -1209,7 +1231,7 @@ class Entity:
     free_joint_q_adr = []
     free_joint_v_adr = []
     for joint in self.spec.joints:
-      jnt = model.joint(joint.name)
+      jnt = _joint_lookup(model, joint.name)
       jnt_type = jnt.type[0]
       vadr = jnt.dofadr[0]
       qadr = jnt.qposadr[0]
@@ -1225,7 +1247,15 @@ class Entity:
     free_joint_q_adr = torch.tensor(free_joint_q_adr, dtype=torch.int, device=device)
 
     if self.is_fixed_base and self.is_mocap:
-      mocap_id = int(model.body_mocapid[self.root_body.id])
+      try:
+        body_id = self.root_body.id
+        if body_id >= model.nbody:
+          body_name = self.root_body.name
+          bare_name = body_name.split("/", 1)[1] if "/" in body_name else body_name
+          body_id = model.body(bare_name).id
+        mocap_id = int(model.body_mocapid[body_id])
+      except (KeyError, IndexError):
+        mocap_id = None
     else:
       mocap_id = None
 

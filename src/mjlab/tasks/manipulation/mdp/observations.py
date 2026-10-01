@@ -112,6 +112,7 @@ def camera_depth(
   depth_data = sensor.data.depth  # (B, H, W, 1)
   assert depth_data is not None, f"Camera '{sensor_name}' has no depth data"
   depth_data = depth_data.permute(0, 3, 1, 2)  # (B, 1, H, W)
+  depth_data = torch.where(depth_data <= 0.0, cutoff_distance, depth_data)
   depth_data_clipped = torch.clamp(depth_data, min=min_depth, max=cutoff_distance)
   return torch.clamp(depth_data_clipped / cutoff_distance, 0.0, 1.0)
 
