@@ -7,6 +7,9 @@ on:
 
 jobs:
   run:
+    # Upstream's PyPI release. The Cyberwave fork publishes to Buildkite instead
+    # (publish-buildkite.yml).
+    if: github.repository == 'mujocolab/mjlab'
     runs-on: ubuntu-latest
     environment:
       name: pypi

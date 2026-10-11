@@ -3,8 +3,11 @@ requires = ["uv_build>=0.12.1,<0.13.0"]
 build-backend = "uv_build"
 
 [project]
-name = "mjlab"
-version = "1.6.0"
+# Cyberwave fork: published to the internal Buildkite registry as
+# cyberwave-mjlab (import name stays `mjlab`), so it can never be confused with
+# PyPI's mjlab. The version is upstream's plus a .postN for our changes.
+name = "cyberwave-mjlab"
+version = "1.6.0.post1"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 readme = { file = "README.md", content-type = "text/markdown" }
@@ -93,6 +96,9 @@ docs = [
 [project.optional-dependencies]
 cu130 = ["torch>=2.11.0"]
 cpu = ["torch>=2.11.0"]
+
+[tool.uv.build-backend]
+module-name = "mjlab"
 
 [tool.uv]
 conflicts = [
