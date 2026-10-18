@@ -7,7 +7,7 @@ build-backend = "uv_build"
 # cyberwave-mjlab (import name stays `mjlab`), so it can never be confused with
 # PyPI's mjlab. The version is upstream's plus a .postN for our changes.
 name = "cyberwave-mjlab"
-version = "1.6.0.post1"
+version = "1.6.0.post2"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 readme = { file = "README.md", content-type = "text/markdown" }
@@ -38,9 +38,9 @@ dependencies = [
   "tyro>=1.0.1",
   "torch>=2.11.0",
   "torchrunx>=0.3.4",
-  "warp-lang>=1.14.0",
-  "mujoco-warp~=3.11.0",
-  "mujoco~=3.11.0",
+  "warp-lang>=1.15.0",
+  "mujoco-warp~=3.16.0",
+  "mujoco~=3.16.0",
   "trimesh>=4.8.3",
   "scipy>=1.15",
   "viser>=1.0.27",
