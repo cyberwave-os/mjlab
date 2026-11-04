@@ -16,6 +16,15 @@ Added
   wrap. Bounded joints are unaffected, and the default preserves the existing
   behavior for all current tasks and checkpoints.
 
+Changed
+^^^^^^^
+
+- Bumped ``mujoco`` and ``mujoco-warp`` from 3.11 to 3.16 and raised the
+  ``warp-lang`` floor to 1.15 (upstream's 3.16 bump, mujocolab/mjlab#1209).
+- ``BuiltinDcMotorActuatorCfg`` PID gains are now in torque space, following
+  MuJoCo 3.14. VELOCITY mode requires ``damping > 0`` and ``stiffness = 0``, and
+  VOLTAGE mode rejects ``voltage_limit`` and ``slew_rate``.
+
 Version 1.6.0 (August 8, 2026)
 ------------------------------
 

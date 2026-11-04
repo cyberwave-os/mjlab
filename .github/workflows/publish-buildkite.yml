@@ -7,7 +7,7 @@
 # Install:
 #   pip install --extra-index-url \
 #     "https://buildkite:${TOKEN}@packages.buildkite.com/cyberwave/cyberwave-internal-python/pypi/simple" \
-#     cyberwave-mjlab==1.6.0.post1
+#     cyberwave-mjlab==1.6.0.post2
 #
 # Requires the BUILDKITE_API_TOKEN secret (write access to the registry).
 name: Publish to Buildkite
